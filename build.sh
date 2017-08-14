@@ -1,53 +1,60 @@
 #!/bin/bash
 
-# This script will compile and install a static ffmpeg build with support for
+# This script will compile and install a shared ffmpeg build with support for
 # nvenc on ubuntu. See the prefix path and compile options if edits are needed
 # to suit your needs.
 
 #Authors:
 #   Linux GameCast ( http://linuxgamecast.com/ )
 #   Mathieu Comandon <strider@strycore.com>
+#   Marc Schmitt <marc.schmitt@unibw.de>
 
 set -e
 
 ShowUsage() {
-    echo "Usage: ./build.sh [--dest /path/to/ffmpeg] [--obs] [--help]"
+    echo "Usage: ./build.sh [--dest /path/to/ffmpeg] [--help]"
     echo "Options:"
-    echo "  -d/--dest: Where to build ffmpeg (Optional, defaults to ./ffmpeg-nvenc)"
+    echo "  -d/--dest: Where to build ffmpeg (Optional, defaults to ./ffmpeg)"
+    echo "  -s/--source: Where to put the source files (Optional, defaults to ./source)"
     echo "  -h/--help: This help screen"
     exit 0
 }
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-params=$(getopt -n $0 -o d:oh --long dest:,obs,help -- "$@")
+params=$(getopt -n $0 -o d:s:oh --long dest:,source:,obs,help -- "$@")
 eval set -- $params
 while true ; do
     case "$1" in
         -h|--help) ShowUsage ;;
-        -o|--obs) build_obs=1; shift ;;
         -d|--dest) build_dir=$2; shift 2;;
+        -s|--source) source_dir=$2; shift 2;;
         *) shift; break ;;
     esac
 done
 
+echo "after parsing: $source_dir"
+
 cpus=$(getconf _NPROCESSORS_ONLN)
-source_dir="${root_dir}/source"
+
+#~ source_dir="${root_dir}/source"
+source_dir="${source_dir:-"${root_dir}/source"}"
 mkdir -p $source_dir
-build_dir="${build_dir:-"${root_dir}/ffmpeg-nvenc"}"
+build_dir="${build_dir:-"${root_dir}/ffmpeg"}"
 mkdir -p $build_dir
 bin_dir="${build_dir}/bin"
 mkdir -p $bin_dir
 inc_dir="${build_dir}/include"
 mkdir -p $inc_dir
 
+echo "Downloading source files to ${source_dir}"
 echo "Building FFmpeg in ${build_dir}"
 
 export PATH=$bin_dir:$PATH
 
 InstallDependencies() {
     echo "Installing dependencies"
-    sudo apt-get -y --force-yes install autoconf automake build-essential libass-dev libfreetype6-dev \
+    sudo apt install autoconf automake build-essential libass-dev libfreetype6-dev \
           libsdl2-dev libtheora-dev libtool libva-dev libvdpau-dev libvorbis-dev libxcb1-dev libxcb-shm0-dev \
           libxcb-xfixes0-dev pkg-config texinfo wget zlib1g-dev
 }
@@ -106,9 +113,12 @@ BuildX265() {
 BuildFdkAac() {
     echo "Compiling libfdk-aac"
     cd $source_dir
-    wget -4 -O fdk-aac.zip https://github.com/mstorsjo/fdk-aac/zipball/master
-    unzip fdk-aac.zip
-    cd mstorsjo-fdk-aac*
+    fdkAac_version="0.1.5"
+    fdkAac_basename="v${fdkAac_version}"
+    fdkAac_dlname="${fdkAac_basename}.tar.gz"
+    wget -4 -N https://github.com/mstorsjo/fdk-aac/archive/${fdkAac_dlname}
+    tar xzf "${fdkAac_dlname}"
+    cd fdk-aac*
     autoreconf -fiv
     ./configure --prefix="$build_dir" # --disable-shared
     make -j${cpus}
@@ -123,7 +133,7 @@ BuildLame() {
     wget -4 -N "http://downloads.sourceforge.net/project/lame/lame/3.99/${lame_basename}.tar.gz"
     tar xzf "${lame_basename}.tar.gz"
     cd $lame_basename
-    ./configure --prefix="$build_dir" --enable-nasm # --disable-shared
+    ./configure --prefix="$build_dir" --enable-nasm #--disable-shared
     make -j${cpus}
     make install
 }
@@ -131,10 +141,11 @@ BuildLame() {
 BuildOpus() {
     echo "Compiling libopus"
     cd $source_dir
-    opus_version="1.1"
+    opus_version="1.2.1"
     opus_basename="opus-${opus_version}"
-    wget -4 -N "http://downloads.xiph.org/releases/opus/${opus_basename}.tar.gz"
-    tar xzf "${opus_basename}.tar.gz"
+    opus_dlname="${opus_basename}.tar.gz"
+    wget -4 -N "https://archive.mozilla.org/pub/opus/${opus_dlname}"
+    tar xzf "${opus_dlname}"
     cd $opus_basename
     ./configure --prefix="$build_dir" # --disable-shared
     make -j${cpus}
@@ -144,7 +155,7 @@ BuildOpus() {
 BuildVpx() {
     echo "Compiling libvpx"
     cd $source_dir
-    vpx_version="1.5.0"
+    vpx_version="1.6.1"
     vpx_basename="libvpx-${vpx_version}"
     vpx_url="http://storage.googleapis.com/downloads.webmproject.org/releases/webm/${vpx_basename}.tar.bz2"
     wget -4 -N $vpx_url
