@@ -14,7 +14,6 @@ ShowUsage() {
     echo "Usage: ./build.sh [--dest /path/to/ffmpeg] [--obs] [--help]"
     echo "Options:"
     echo "  -d/--dest: Where to build ffmpeg (Optional, defaults to ./ffmpeg-nvenc)"
-    echo "  -o/--obs:  Build OBS Studio"
     echo "  -h/--help: This help screen"
     exit 0
 }
@@ -48,37 +47,9 @@ export PATH=$bin_dir:$PATH
 
 InstallDependencies() {
     echo "Installing dependencies"
-    sudo apt-get -y --force-yes install autoconf automake build-essential libass-dev \
-        libfreetype6-dev libgpac-dev libsdl1.2-dev libtheora-dev libtool libva-dev \
-        libvdpau-dev libvorbis-dev libxcb1-dev libxcb-shm0-dev libxcb-xfixes0-dev \
-        libqt5x11extras5-dev libxcb-xinerama0-dev libvlc-dev libv4l-dev   \
-        pkg-config texi2html zlib1g-dev cmake libcurl4-openssl-dev \
-        libjack-jackd2-dev libxcomposite-dev x11proto-composite-dev \
-        libx264-dev libgl1-mesa-dev libglu1-mesa-dev libasound2-dev \
-        libpulse-dev libx11-dev libxext-dev libxfixes-dev \
-        libxi-dev qt5-default qttools5-dev qt5-qmake qtbase5-dev
-}
-
-# TODO Detect running system
-InstallDependenciesOpenSUSE() {
-   echo "Installing dependencies"
-   sudo zypper in -y autoconf automake libass-devel libfreetype6 libgpac-devel \
-       libSDL-devel libtheora-devel libtool libva-devel libvdpau-devel libvorbis-devel \
-       libxcb-devel pkg-config libxcb-shm0 libvlc5 vlc-devel xcb-util-devel \
-       libv4l-devel v4l-utils-devel-tools texi2html zlib-devel cmake \
-       libcurl-devel libfdk-aac1
-}
-
-InstallNvidiaSDK() {
-    echo "Installing the NVidia Video SDK"
-    sdk_version="6.0.1"
-    sdk_basename="nvidia_video_sdk_${sdk_version}"
-    sdk_url="http://developer.download.nvidia.com/assets/cuda/files/${sdk_basename}.zip"
-    cd $source_dir
-    wget -4 $sdk_url
-    unzip "${sdk_basename}.zip"
-    cd $sdk_basename
-    cp -a Samples/common/inc/* $inc_dir
+    sudo apt-get -y --force-yes install autoconf automake build-essential libass-dev libfreetype6-dev \
+          libsdl2-dev libtheora-dev libtool libva-dev libvdpau-dev libvorbis-dev libxcb1-dev libxcb-shm0-dev \
+          libxcb-xfixes0-dev pkg-config texinfo wget zlib1g-dev
 }
 
 BuildNasm() {
@@ -86,7 +57,7 @@ BuildNasm() {
     cd $source_dir
     nasm_version="2.13.01"
     nasm_basename="nasm-${nasm_version}"
-    wget -4 http://www.nasm.us/pub/nasm/releasebuilds/${nasm_version}/nasm-${nasm_version}.tar.gz
+    wget -4 -N http://www.nasm.us/pub/nasm/releasebuilds/${nasm_version}/nasm-${nasm_version}.tar.gz
     tar xzf "${nasm_basename}.tar.gz"
     cd $nasm_basename
     ./configure --prefix="${build_dir}" --bindir="${bin_dir}"
@@ -99,7 +70,7 @@ BuildYasm() {
     cd $source_dir
     yasm_version="1.3.0"
     yasm_basename="yasm-${yasm_version}"
-    wget -4 http://www.tortall.net/projects/yasm/releases/${yasm_basename}.tar.gz
+    wget -4 -N http://www.tortall.net/projects/yasm/releases/${yasm_basename}.tar.gz
     tar xzf "${yasm_basename}.tar.gz"
     cd $yasm_basename
     ./configure --prefix="${build_dir}" --bindir="${bin_dir}"
@@ -110,12 +81,26 @@ BuildYasm() {
 BuildX264() {
     echo "Compiling libx264"
     cd $source_dir
-    wget -4 http://download.videolan.org/pub/x264/snapshots/last_x264.tar.bz2
+    wget -4 -N http://download.videolan.org/pub/x264/snapshots/last_x264.tar.bz2
     tar xjf last_x264.tar.bz2
     cd x264-snapshot*
     ./configure --prefix="$build_dir" --bindir="$bin_dir" --enable-pic --enable-shared
     make -j${cpus}
     make install
+}
+
+BuildX265() {
+    echo "Compiling libx265"
+    cd $source_dir
+    x265_version="2.5"
+    x265_basename="x265_${x265_version}"
+    x265_dlname="${x265_basename}.tar.gz"
+    wget -4 -N https://bitbucket.org/multicoreware/x265/downloads/${x265_dlname}
+    tar xzf "${x265_dlname}"
+    cd ${x265_basename}/build/linux
+    cmake -G "Ninja" -DCMAKE_INSTALL_PREFIX="$build_dir" -DENABLE_SHARED:bool=on ../../source    
+    ninja
+    ninja install
 }
 
 BuildFdkAac() {
@@ -135,7 +120,7 @@ BuildLame() {
     cd $source_dir
     lame_version="3.99.5"
     lame_basename="lame-${lame_version}"
-    wget -4 "http://downloads.sourceforge.net/project/lame/lame/3.99/${lame_basename}.tar.gz"
+    wget -4 -N "http://downloads.sourceforge.net/project/lame/lame/3.99/${lame_basename}.tar.gz"
     tar xzf "${lame_basename}.tar.gz"
     cd $lame_basename
     ./configure --prefix="$build_dir" --enable-nasm # --disable-shared
@@ -148,7 +133,7 @@ BuildOpus() {
     cd $source_dir
     opus_version="1.1"
     opus_basename="opus-${opus_version}"
-    wget -4 "http://downloads.xiph.org/releases/opus/${opus_basename}.tar.gz"
+    wget -4 -N "http://downloads.xiph.org/releases/opus/${opus_basename}.tar.gz"
     tar xzf "${opus_basename}.tar.gz"
     cd $opus_basename
     ./configure --prefix="$build_dir" # --disable-shared
@@ -162,7 +147,7 @@ BuildVpx() {
     vpx_version="1.5.0"
     vpx_basename="libvpx-${vpx_version}"
     vpx_url="http://storage.googleapis.com/downloads.webmproject.org/releases/webm/${vpx_basename}.tar.bz2"
-    wget -4 $vpx_url
+    wget -4 -N $vpx_url
     tar xjf "${vpx_basename}.tar.bz2"
     cd $vpx_basename
     ./configure --prefix="$build_dir" --disable-examples --enable-shared --disable-static
@@ -173,14 +158,13 @@ BuildVpx() {
 BuildFFmpeg() {
     echo "Compiling ffmpeg"
     cd $source_dir
-    ffmpeg_version="3.1"
-    if [ ! -f  ffmpeg-${ffmpeg_version}.tar.bz2 ]; then
-        wget -4 http://ffmpeg.org/releases/ffmpeg-${ffmpeg_version}.tar.bz2
-    fi
+    ffmpeg_version="3.3"
+    wget -4 -N http://ffmpeg.org/releases/ffmpeg-${ffmpeg_version}.tar.bz2
     tar xjf ffmpeg-${ffmpeg_version}.tar.bz2
     cd ffmpeg-${ffmpeg_version}
     PKG_CONFIG_PATH="${build_dir}/lib/pkgconfig" ./configure \
         --prefix="$build_dir" \
+        --pkg-config-flags="--static" \
         --extra-cflags="-fPIC -m64 -I${inc_dir}" \
         --extra-ldflags="-L${build_dir}/lib" \
         --bindir="$bin_dir" \
@@ -194,29 +178,11 @@ BuildFFmpeg() {
         --enable-libvorbis \
         --enable-libvpx \
         --enable-libx264 \
+        --enable-libx265 \
         --enable-nonfree \
         --enable-nvenc \
-        --enable-pic \
-        --enable-x11grab \
-        --extra-ldexeflags=-pie \
+        --disable-static \
         --enable-shared
-    make -j${cpus}
-    make install
-}
-
-BuildOBS() {
-    cd $source_dir
-    export FFmpegPath="${source_dir}/ffmpeg"
-    if [ -d obs-studio ]; then
-        cd obs-studio
-        git pull
-    else
-        git clone https://github.com/jp9000/obs-studio.git
-        cd obs-studio
-    fi
-    mkdir -p build
-    cd build
-    cmake -DUNIX_STRUCTURE=1 -DCMAKE_INSTALL_PREFIX=$build_dir ..
     make -j${cpus}
     make install
 }
@@ -236,52 +202,21 @@ cd "${build_dir}/bin"
 ./ffmpeg "\$@"
 EOF
     chmod +x ffmpeg.sh
-
-    if [ "$build_obs" ]; then
-        cat <<EOF > obs.sh
-#!/bin/bash
-export LD_LIBRARY_PATH="${build_dir}/lib":\$LD_LIBRARY_PATH
-cd "${build_dir}/bin"
-./obs "\$@"
-EOF
-        chmod +x obs.sh
-    fi
-}
-
-MakeLauncherOBS() {
-    cat <<EOF > ~/.local/share/applications/obs.desktop
-[Desktop Entry]
-Version=1.0
-Name=OBS Studio
-Comment=OBS Studio (NVenc enabled)
-Categories=Video;
-Exec=${build_dir}/scripts/obs.sh %U
-Icon=obs
-Terminal=false
-Type=Application
-EOF
-    mkdir -p ~/.icons
-    cp ${root_dir}/media/obs.png ~/.icons
-    gtk-update-icon-cache -t ~/.icons
 }
 
 if [ $1 ]; then
     $1
 else
     InstallDependencies
-    InstallNvidiaSDK
     BuildNasm
     BuildYasm
     BuildX264
+    BuildX265
     BuildFdkAac
     BuildLame
     BuildOpus
     BuildVpx
     BuildFFmpeg
-    if [ "$build_obs" ]; then
-        BuildOBS
-        MakeLauncherOBS
-    fi
 
     MakeScripts
 fi
