@@ -1,8 +1,7 @@
 # FFmpeg + nvenc build script
 
 This script will compile FFmpeg with Nvidia NVENC support enabled.
-It can also build OBS Studio or Simple Screen Recorder using that FFmpeg build
-thus providing NVENC for OBS.
+It's forked from: https://github.com/lutris/ffmpeg-nvenc.git
 
 It is brought to you by [Linux GameCast](http://linuxgamecast.com/) and
 [Lutris](https://lutris.net) #lgccares
@@ -12,15 +11,15 @@ It is brought to you by [Linux GameCast](http://linuxgamecast.com/) and
 Clone the repo then use the `build.sh` script to compile the binaries
 
 ```
-git clone https://github.com/lutris/ffmpeg-nvenc.git
+git clone https://github.com/nightsparc/ffmpeg-nvenc.git
 cd ffmpeg-nvenc
 ./build.sh --dest $HOME/apps/ffmpeg-nvenc
 ```
 
 The following command line options are available:
 
-* -d / --dest <path> : Destination path for FFmpeg / OBS
-* -o / --obs : Build OBS Studio
+* -d / --dest <path> : Destination path for FFmpeg
+* -s / --source <path> : Path for the source files.
 * -h / --help : Usage
 
 ## TODO
